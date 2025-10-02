@@ -20,7 +20,7 @@ import os, shutil
 from sqlalchemy.orm import Session
 # Session = modelagem dos dados ORM 'id, nome, preco'
 
-from database import get_db
+from database import get_db, SessionLocal
 # get_db = coletar banco 'produtos.db' para a api 
 
 from models import Produto
@@ -59,3 +59,117 @@ async def detalhe (request: Request, id_produto: int,
     return templates.TemplateResponse("produto.html", {
         "request": request, "produto": produto
     })
+    
+################################################
+
+# CRUD DOS PRODUTOS
+
+# função criar produtos:
+async def criar_produto(
+    nome: str = Form(...),
+    preco: float = Form(...),
+    quantidade: int = Form(...),
+    imagem: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    # caminho para salvar a imagem:
+    caminho = os.path.join(UPLOAD_DIR, imagem.filename) # em banco, apenas se salva o filename e NÃO IMAGEM
+    with open(caminho, "wb") as arquivo:
+        shutil.copyfileobj(imagem.file, arquivo) # shutil pega o caminho e arquiva/salva o arquivo
+        
+        # grava o produto:
+        novo = Produto(nome = nome, preco = preco, quantidade = quantidade, imagem = imagem.filename)
+        db.add(novo)
+        db.commit()
+        db.refresh(novo)
+        return novo
+    
+# rota da api para criar um item novo:
+@router.get("/novo", response_class=HTMLResponse)
+async def form_novo(request: Request):
+    return templates.TemplateResponse("novo.html", {
+        "request": request
+    })
+    
+# criar metodo post para criar:
+@router.post("/novo")
+async def criar(
+    nome: str = Form(...),
+    preco: float = Form(...),
+    quantidade: int = Form(...),
+    imagem: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    await criar_produto(nome, preco, quantidade, imagem, db)
+    return RedirectResponse("/", status_code=303)
+
+# editar produto:
+async def atualizar_produto(
+    id: int,
+    nome: str = Form(...),
+    preco: float = Form(...),
+    quantidade: int = Form(...),
+    imagem: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    # buscar produto pelo id:
+    produto = db.query(Produto).filter(Produto.id == id).filter()
+    if not produto:
+        return None
+    produto.nome = nome,
+    produto.preco = preco,
+    produto.quantidade = quantidade,
+    if imagem and imagem.filename != "":
+        # caminho para salvar:
+        caminho = os.path.join(UPLOAD_DIR, imagem.filename) # em banco, apenas se salva o filename e NÃO IMAGEM
+        with open(caminho, "wb") as arquivo:
+            shutil.copyfileobj(imagem.file, arquivo) # shutil pega o caminho e arquiva/salva o arquivo
+        produto.imagem = imagem.filename
+    db.commit()
+    db.refresh(produto)
+    return produto
+
+# rota para editar o produto: 
+@router.get("/editar/{id}", response_class=HTMLResponse)
+async def form_editar(
+    id: int, request: Request, db: Session = Depends(get_db)
+):
+    # query produto id:
+    produto = db.query(Produto).filter(Produto).first()
+    return templates.TemplateResponse("editar.html", {
+        "request": request, "produto": produto
+    })
+        
+# metodo editar
+@router.post("/editar/{id}")
+async def editar(
+    id: int,
+    nome: str = Form(...),
+    preco: float = Form(...),
+    quantidade: int = Form(...),
+    imagem: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    await criar_produto(nome, preco, quantidade, imagem, db)
+    return RedirectResponse("/", status_code=303)
+
+###############################################################
+# deletar produto:
+async def deletar_produto(
+    id: int,
+    db: Session = Depends(get_db)
+):
+    produto = db.query(Produto).filter(Produto.id == id).first()
+    if produto:
+        db.delete(produto)
+        db.commit()
+    else:
+        return None
+    return produto
+
+# rota p deletar:
+@router.get("/deletar/{id}")
+async def deletar(id: int,
+                  db: Session = Depends(get_db)):
+    await deletar_produto(id, db)
+    return RedirectResponse("/", status_code= 303)

@@ -15,7 +15,7 @@ Base.metadata.create_all(bind = engine)
 
 # criar dados no banco:
 '''
-nome = "camisa"
+nome = ""
 preco = 89.45
 quantidade = 20
 imagem =  "sem foto"

@@ -8,11 +8,12 @@
 <body>
     <h1> Product's List </h1>
     <ul>
+        {% for i in produtos %}
         <li>
             {% if imagem %}
                 <br> <img src="/static/upload/{{i.imagem}}" alt="{{i.nome}}">
             {% else %}
-                <br><img src="link sem imagem" width="80">
+                <br><img src="/static/upload/{{i.imagem}}" width="80">
             {% endif %}
             <a href="/produtos/{{i.id}}">{{i.nome}}</a> - {{i.preco}}
         </li>
